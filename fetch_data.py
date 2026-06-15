@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # 获取完整历史，便于 rebase
+          ref: main               # 明确拉取 main 分支
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,13 +32,15 @@ jobs:
 
       - name: Commit and push if changed
         run: |
+          # 配置 Git 用户（使用你的真实用户名和邮箱）
           git config user.name "crabboyu"
           git config user.email "crabboyu@users.noreply.github.com"
-          # 先拉取远程最新更改（避免冲突）
+          
+          # 先拉取远程最新更改（使用 rebase 避免合并提交）
           git pull --rebase origin main
-          # 添加数据文件
+          
+          # 如果有新的变更则提交
           git add data.json
-          # 如果有变更则提交并推送
           if ! git diff --cached --quiet; then
             git commit -m "Auto-update data"
             git push origin main
