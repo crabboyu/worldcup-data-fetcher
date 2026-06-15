@@ -30,20 +30,15 @@ jobs:
       - name: Run data fetch script
         run: python fetch_data.py
 
-      - name: Commit and push if changed
+            - name: Commit and push if changed
         run: |
-          # 配置 Git 用户（使用你的真实用户名和邮箱）
           git config user.name "crabboyu"
           git config user.email "crabboyu@users.noreply.github.com"
-          
-          # 先拉取远程最新更改（使用 rebase 避免合并提交）
-          git pull --rebase origin main
-          
-          # 如果有新的变更则提交
+          git pull --rebase https://crabboyu:${{ secrets.PAT }}@github.com/crabboyu/worldcup-data-fetcher.git main
           git add data.json
           if ! git diff --cached --quiet; then
             git commit -m "Auto-update data"
-            git push origin main
+            git push https://crabboyu:${{ secrets.PAT }}@github.com/crabboyu/worldcup-data-fetcher.git main
           else
             echo "No changes to commit"
           fi
