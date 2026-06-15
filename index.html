@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>2026世界杯 · 实时赛况看板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #8BC34A 0%, #FFD54F 50%, #FF8A65 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: rgba(255,255,245,0.95);
+            border-radius: 48px;
+            padding: 30px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #1e2a1f;
+        }
+        .last-updated {
+            text-align: center;
+            color: #d35400;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        .match-card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-left: 8px solid #F57C00;
+        }
+        .teams {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            background: #FFE0B5;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+        .score {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #E67E22;
+        }
+        .venue, .date {
+            color: #555;
+            font-size: 0.9rem;
+            margin-top: 6px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #2c3e2f;
+        }
+        @media (max-width: 700px) {
+            .container { padding: 20px; }
+            .teams { font-size: 1.1rem; }
+            .score { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚽ 2026 世界杯实时赛况</h1>
+    <div id="last-updated" class="last-updated">加载中...</div>
+    <div id="matches"></div>
+    <div class="footer">
+        ⚡ 数据来源：ESPN · 每30分钟自动更新
+    </div>
+</div>
+
+<script>
+    async function loadData() {
+        try {
+            const response = await fetch('data.json');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            
+            document.getElementById('last-updated').innerHTML = `📅 最后更新：${data.last_updated} (香港时间) · 共 ${data.matches.length} 场比赛`;
+            
+            const matchesDiv = document.getElementById('matches');
+            matchesDiv.innerHTML = '';
+            
+            if (data.matches.length === 0) {
+                matchesDiv.innerHTML = '<p style="text-align:center;">暂无比赛数据，请稍后再试。</p>';
+                return;
+            }
+            
+            data.matches.forEach(match => {
+                const card = document.createElement('div');
+                card.className = 'match-card';
+                
+                let statusText = '';
+                let scoreHtml = '';
+                const statusRaw = match.status;
+                if (statusRaw === 'STATUS_SCHEDULED') {
+                    statusText = '⏳ 未开始';
+                    scoreHtml = `<div class="score"> - : - </div>`;
+                } else if (statusRaw === 'STATUS_IN_PROGRESS') {
+                    statusText = '🔥 进行中';
+                    scoreHtml = `<div class="score">${match.home_score ?? '-'} : ${match.away_score ?? '-'}</div>`;
+                } else if (statusRaw === 'STATUS_FINAL') {
+                    statusText = '✅ 完场';
+                    scoreHtml = `<div class="score">${match.home_score ?? '-'} : ${match.away_score ?? '-'}</div>`;
+                } else {
+                    statusText = statusRaw;
+                    scoreHtml = `<div class="score">${match.home_score ?? '-'} : ${match.away_score ?? '-'}</div>`;
+                }
+                
+                card.innerHTML = `
+                    <div class="teams">${match.home_team} vs ${match.away_team}</div>
+                    <div class="status">${statusText}</div>
+                    ${scoreHtml}
+                    <div class="venue">🏟️ 场馆：${match.venue || '待公布'}</div>
+                    <div class="date">📅 开赛时间：${match.date || '待定'}</div>
+                `;
+                matchesDiv.appendChild(card);
+            });
+        } catch (error) {
+            console.error('加载失败:', error);
+            document.getElementById('matches').innerHTML = '<p style="text-align:center;color:red;">❌ 加载数据失败，请检查网络或稍后重试。</p>';
+        }
+    }
+    
+    loadData();
+    setInterval(loadData, 300000);
+</script>
+</body>
+</html>
