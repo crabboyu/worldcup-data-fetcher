@@ -9,7 +9,7 @@ def fetch_world_cup_data():
     """Fetch World Cup matches data from public API"""
     try:
         # Fetch all matches
-        response = requests.get(f"{API_URL}/matches")
+        response = requests.get(f"{API_URL}/matches", timeout=10)
         response.raise_for_status()
         
         matches = response.json()
