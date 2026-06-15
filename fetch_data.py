@@ -29,8 +29,16 @@ jobs:
 
       - name: Commit and push if changed
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "crabboyu"
+          git config user.email "crabboyu@users.noreply.github.com"
+          # 先拉取远程最新更改（避免冲突）
+          git pull --rebase origin main
+          # 添加数据文件
           git add data.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update data"
-          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          # 如果有变更则提交并推送
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-update data"
+            git push origin main
+          else
+            echo "No changes to commit"
+          fi
