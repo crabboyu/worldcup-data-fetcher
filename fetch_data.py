@@ -1,51 +1,44 @@
-import json
-import requests
-from datetime import datetime
+name: Fetch World Cup Data
 
-# FIFA World Cup 2026 data endpoint
-API_URL = "https://worldcup-api.herokuapp.com"
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # 每30分钟自动运行
+  workflow_dispatch:          # 允许手动触发
 
-def fetch_world_cup_data():
-    """Fetch World Cup matches data from public API"""
-    try:
-        # Fetch all matches
-        response = requests.get(f"{API_URL}/matches", timeout=10)
-        response.raise_for_status()
-        
-        matches = response.json()
-        
-        # Parse and format the data
-        data = {
-            "updated_at": datetime.now().isoformat(),
-            "matches": matches,
-            "total_matches": len(matches)
-        }
-        
-        return data
-    
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching World Cup data: {e}")
-        return None
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
 
-def save_data(data, filename="data.json"):
-    """Save data to JSON file"""
-    if data:
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            print(f"Data successfully saved to {filename}")
-            return True
-        except IOError as e:
-            print(f"Error saving data to {filename}: {e}")
-            return False
-    return False
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-if __name__ == "__main__":
-    print("Fetching World Cup 2026 data...")
-    data = fetch_world_cup_data()
-    
-    if data:
-        save_data(data)
-        print("✓ World Cup data fetch completed successfully")
-    else:
-        print("✗ Failed to fetch World Cup data")
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run data fetch script
+        run: python fetch_data.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "crabboyu"
+          git config user.email "crabboyu@users.noreply.github.com"
+          git pull --rebase origin main
+          git add data.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-update data"
+            git push origin main
+          else
+            echo "No changes to commit"
+          fi
