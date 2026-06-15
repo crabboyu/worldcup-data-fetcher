@@ -1,44 +1,78 @@
-name: Fetch World Cup Data
+import json
+import requests
+from datetime import datetime, timezone, timedelta
 
-on:
-  schedule:
-    - cron: '*/30 * * * *'   # 每30分钟自动运行
-  workflow_dispatch:          # 允许手动触发
+def get_hk_time():
+    return datetime.now(timezone(timedelta(hours=8)))
 
-jobs:
-  fetch-data:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
+def fetch_espn_scoreboard():
+    # ESPN 2026 世界杯赛事实时数据接口 (基于已知公开端点)
+    url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/scoreboard"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        return data
+    except Exception as e:
+        print(f"Error fetching ESPN data: {e}")
+        return None
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+def parse_matches(espn_data):
+    matches = []
+    if not espn_data or 'events' not in espn_data:
+        return matches
+    for event in espn_data.get('events', []):
+        try:
+            competitions = event.get('competitions', [])
+            if not competitions:
+                continue
+            comp = competitions[0]
+            competitors = comp.get('competitors', [])
+            if len(competitors) < 2:
+                continue
+            home = competitors[0].get('team', {}).get('displayName', 'Unknown')
+            away = competitors[1].get('team', {}).get('displayName', 'Unknown')
+            home_score = competitors[0].get('score')
+            away_score = competitors[1].get('score')
+            status = event.get('status', {}).get('type', {}).get('description', 'Unknown')
+            venue = comp.get('venue', {}).get('fullName', 'Unknown')
+            date = event.get('date', 'Unknown')
+            matches.append({
+                "home_team": home,
+                "away_team": away,
+                "home_score": home_score,
+                "away_score": away_score,
+                "status": status,
+                "venue": venue,
+                "date": date
+            })
+        except Exception as e:
+            print(f"Parse error for event: {e}")
+            continue
+    return matches
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
+def main():
+    print("Fetching World Cup data from ESPN...")
+    espn_data = fetch_espn_scoreboard()
+    if espn_data is None:
+        print("Failed to fetch data, using empty dataset.")
+        matches = []
+    else:
+        matches = parse_matches(espn_data)
+        print(f"Found {len(matches)} matches")
+    
+    output = {
+        "last_updated": get_hk_time().strftime("%Y-%m-%d %H:%M:%S"),
+        "matches": matches,
+        "source": "ESPN (via site.api.espn.com)"
+    }
+    with open("data.json", "w", encoding="utf-8") as f:
+        json.dump(output, f, indent=2, ensure_ascii=False)
+    print("data.json saved.")
 
-      - name: Run data fetch script
-        run: python fetch_data.py
-
-      - name: Commit and push if changed
-        run: |
-          git config user.name "crabboyu"
-          git config user.email "crabboyu@users.noreply.github.com"
-          git pull --rebase origin main
-          git add data.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Auto-update data"
-            git push origin main
-          else
-            echo "No changes to commit"
+if __name__ == "__main__":
+    main()
           fi
