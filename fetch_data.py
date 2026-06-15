@@ -1,50 +1,36 @@
-import json
-import os
-from datetime import datetime, timezone, timedelta
-from sports_skills import football
+name: Fetch World Cup Data
 
-# 获取香港时区（UTC+8）
-def get_hk_time():
-    return datetime.now(timezone(timedelta(hours=8)))
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
-# 定义要抓取的数据列表
-competitions = [
-    ("世界盃 (FIFA World Cup)", "fifa-world-cup"),
-    ("世界盃 - 小組賽 (FIFA World Cup - Group Stage)", "fifa-world-cup"),
-    ("世界盃 - 淘汰賽 (FIFA World Cup - Knockout Stage)", "fifa-world-cup"),
-]
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-matches_list = []
-for league_name, comp_id in competitions:
-    try:
-        scoreboard = football.get_scoreboard(competition_id=comp_id)
-        if scoreboard and "data" in scoreboard and "events" in scoreboard["data"]:
-            for event in scoreboard["data"]["events"]:
-                match_info = {
-                    "league": league_name,
-                    "date": event.get("date"),
-                    "home_team": event["competitions"][0]["competitors"][0]["team"]["displayName"],
-                    "away_team": event["competitions"][0]["competitors"][1]["team"]["displayName"],
-                    "home_score": event["competitions"][0]["competitors"][0].get("score"),
-                    "away_score": event["competitions"][0]["competitors"][1].get("score"),
-                    "status": event["status"]["type"]["description"],
-                    "venue": event["competitions"][0]["venue"]["fullName"]
-                }
-                matches_list.append(match_info)
-        else:
-            print(f"No matches found for {league_name}")
-    except Exception as e:
-        print(f"Error fetching {league_name}: {e}")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-# 整合所有数据
-data = {
-    "last_updated": get_hk_time().strftime("%Y-%m-%d %H:%M:%S"),
-    "matches": matches_list,
-    "source": "ESPN via sports-skills"
-}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sports-skills
 
-# 写入 data.json 文件
-with open("data.json", "w") as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
+      - name: Run data fetch script
+        run: python fetch_data.py
 
-print(f"Data saved at {get_hk_time().strftime('%Y-%m-%d %H:%M:%S')} with {len(matches_list)} matches")
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update data"
+          git push
