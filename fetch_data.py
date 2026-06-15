@@ -6,30 +6,23 @@ def get_hk_time():
     return datetime.now(timezone(timedelta(hours=8)))
 
 def fetch_espn_scoreboard():
-    # ESPN 2026 世界杯赛事实时数据接口 (基于已知公开端点)
     url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/scoreboard"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     try:
         resp = requests.get(url, headers=headers, timeout=15)
         resp.raise_for_status()
-        data = resp.json()
-        return data
+        return resp.json()
     except Exception as e:
-        print(f"Error fetching ESPN data: {e}")
+        print(f"Error: {e}")
         return None
 
-def parse_matches(espn_data):
+def parse_matches(data):
     matches = []
-    if not espn_data or 'events' not in espn_data:
+    if not data or 'events' not in data:
         return matches
-    for event in espn_data.get('events', []):
+    for event in data.get('events', []):
         try:
-            competitions = event.get('competitions', [])
-            if not competitions:
-                continue
-            comp = competitions[0]
+            comp = event.get('competitions', [{}])[0]
             competitors = comp.get('competitors', [])
             if len(competitors) < 2:
                 continue
@@ -50,29 +43,22 @@ def parse_matches(espn_data):
                 "date": date
             })
         except Exception as e:
-            print(f"Parse error for event: {e}")
-            continue
+            print(f"Parse error: {e}")
     return matches
 
 def main():
-    print("Fetching World Cup data from ESPN...")
-    espn_data = fetch_espn_scoreboard()
-    if espn_data is None:
-        print("Failed to fetch data, using empty dataset.")
-        matches = []
-    else:
-        matches = parse_matches(espn_data)
-        print(f"Found {len(matches)} matches")
-    
+    print("Fetching World Cup data...")
+    raw = fetch_espn_scoreboard()
+    matches = parse_matches(raw) if raw else []
+    print(f"Got {len(matches)} matches")
     output = {
         "last_updated": get_hk_time().strftime("%Y-%m-%d %H:%M:%S"),
         "matches": matches,
-        "source": "ESPN (via site.api.espn.com)"
+        "source": "ESPN"
     }
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
-    print("data.json saved.")
+    print("data.json saved")
 
 if __name__ == "__main__":
     main()
-          fi
