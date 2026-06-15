@@ -1,0 +1,36 @@
+name: Fetch World Cup Data
+
+# 设置定时器：每30分钟执行一次（世界杯期间足够了）
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  # 为了测试，也可以设置手动执行
+  workflow_dispatch:
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install sports-skills
+
+    - name: Run data fetch script
+      run: python fetch_data.py
+
+    - name: Commit and push if changed
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git add data.json
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update data"
+        git push
