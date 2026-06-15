@@ -1,5 +1,6 @@
 import json
-import requests
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 
 def get_hk_time():
@@ -8,12 +9,13 @@ def get_hk_time():
 def fetch_espn_scoreboard():
     url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/scoreboard"
     headers = {"User-Agent": "Mozilla/5.0"}
+    req = urllib.request.Request(url, headers=headers)
     try:
-        resp = requests.get(url, headers=headers, timeout=15)
-        resp.raise_for_status()
-        return resp.json()
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = response.read().decode('utf-8')
+            return json.loads(data)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error fetching data: {e}")
         return None
 
 def parse_matches(data):
@@ -47,14 +49,14 @@ def parse_matches(data):
     return matches
 
 def main():
-    print("Fetching World Cup data...")
+    print("Fetching World Cup data from ESPN...")
     raw = fetch_espn_scoreboard()
     matches = parse_matches(raw) if raw else []
-    print(f"Got {len(matches)} matches")
+    print(f"Found {len(matches)} matches")
     output = {
         "last_updated": get_hk_time().strftime("%Y-%m-%d %H:%M:%S"),
         "matches": matches,
-        "source": "ESPN"
+        "source": "ESPN (urllib)"
     }
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
