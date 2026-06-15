@@ -2,8 +2,8 @@ name: Fetch World Cup Data
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # 每30分钟自动运行
-  workflow_dispatch:          # 允许手动触发
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   fetch-data:
@@ -22,11 +22,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-
+      # 不再需要安装 requests，因为脚本只用标准库
       - name: Run data fetch script
         run: python fetch_data.py
 
